@@ -1,0 +1,14 @@
+[project]
+name = "block-95-api"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.fastapi]
+entrypoint = "main:app"
