@@ -1,8 +1,13 @@
-from dotenv import dotenv_values
-from fastapi import FastAPI, HTTPException
+import secrets
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from config import settings
+from database.db_actions import generate_schema
 from interfaces.category_interface import (
     add_category,
     get_all_categories,
@@ -27,27 +32,54 @@ from pydan_schemas.menu import (
 )
 from utils.responses import message
 
-app = FastAPI()
-env_values = dotenv_values()
+header_scheme = APIKeyHeader(name="ApiKey")
+
+
+def require_auth(api_key: str = Depends(header_scheme)):
+    # Use compare digest to prevent timing attacks
+    if not secrets.compare_digest(api_key, settings.api_key):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key",
+        )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # runs on startup
+    generate_schema()
+    yield
+    # runs on shutdown
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 # Only accept requests from block95 official website
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[(env_values.get("ORIGIN_DOMAIN") or "")],
+    allow_origins=[settings.origin_domain],
     allow_methods=["GET"],
     allow_headers=[],
 )
 
+
+auth = Depends(require_auth)
 
 # Menu endpoints
 
 
 @app.get("/")
 def root():
-    return {"message": "Hello, this is an endpoint for the Block 95 Website"}
+    return {
+        "message": "Welcome to the block95 api",
+    }
 
 
-@app.get("/menu", response_model=list[GetMenuItemSchema])
+@app.get(
+    "/menu",
+    response_model=list[GetMenuItemSchema],
+)
 def get_menu():
     try:
         menu_items = get_menu_items()
@@ -58,6 +90,7 @@ def get_menu():
 
 @app.post(
     "/menu",
+    dependencies=[auth],
     status_code=201,
     response_model=GetMenuItemSchema,
 )
@@ -71,7 +104,7 @@ def add_item(item: PostMenuItemSchema):
         raise HTTPException(status_code=500, detail="Failed to add item to the menu")
 
 
-@app.delete("/menu/{item_id}", status_code=204)
+@app.delete("/menu/{item_id}", dependencies=[auth], status_code=204)
 def delete_item(item_id: int):
     try:
         deletion_status = delete_menu_item(item_id=item_id)
@@ -82,13 +115,13 @@ def delete_item(item_id: int):
         raise HTTPException(status_code=500, detail="Failed to delete item")
 
 
-@app.patch("/menu/{item_id}", status_code=200)
+@app.patch("/menu/{item_id}", dependencies=[auth], status_code=200)
 def update_item(item: UpdateMenuItemSchema, item_id: int):
     try:
         updated_item = update_menu_item(item=item, item_target_id=item_id)
         if not updated_item:
             raise HTTPException(status_code=404, detail="Item to update not found")
-        return message(text="Sucessfully updated item", updated_category=updated_item)
+        return message(text="Sucessfully updated item", updated_item=updated_item)
     except SQLAlchemyError:
         raise HTTPException(status_code=500, detail="Failed to update item")
 
@@ -107,7 +140,7 @@ def get_categories():
 
 
 # Update categories
-@app.patch("/category/{category_id}", status_code=200)
+@app.patch("/category/{category_id}", dependencies=[auth], status_code=200)
 def patch_category(category: UpdateCategorySchema, category_id: int):
     try:
         updated_category = update_category(
@@ -126,7 +159,7 @@ def patch_category(category: UpdateCategorySchema, category_id: int):
 
 
 # Delete categories
-@app.delete("/category/{category_id}", status_code=204)
+@app.delete("/category/{category_id}", dependencies=[auth], status_code=204)
 def delete_category(category_id: int):
     try:
         deletion_status = remove_category(category_id=category_id)
@@ -142,7 +175,9 @@ def delete_category(category_id: int):
 
 
 # Create categories
-@app.post("/category", response_model=GetCategorySchema, status_code=201)
+@app.post(
+    "/category", dependencies=[auth], response_model=GetCategorySchema, status_code=201
+)
 def post_category(category: PostCategorySchema):
     try:
         new_category = add_category(

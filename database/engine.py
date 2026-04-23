@@ -1,16 +1,11 @@
 from sqlalchemy import URL, create_engine
 from sqlalchemy.orm import sessionmaker
 
+from config import settings
+
 
 def make_engine():
-    db_url = URL.create(
-        drivername="postgresql+psycopg2",
-        username="jordidiaz",
-        password="",
-        host="localhost",
-        port=5432,
-        database="block95",
-    )
+    db_url = settings.database_url
     return create_engine(db_url, echo=True)
 
 
