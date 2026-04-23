@@ -15,7 +15,9 @@ class Category(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(Text, unique=True)
 
-    items: Mapped[list["MenuItem"]] = relationship(back_populates="category")
+    items: Mapped[list["MenuItem"]] = relationship(
+        back_populates="category", lazy="selectin"
+    )
 
 
 class MenuItem(Base):

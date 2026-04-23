@@ -1,6 +1,6 @@
 from sqlalchemy import select
 
-from database.db_schema import MenuItem
+from database.db_schema import Category, MenuItem
 from database.engine import Session
 from pydan_schemas.menu import UpdateMenuItemSchema
 
@@ -10,7 +10,7 @@ def get_menu_items():
     Gets all the items within the menu table along with categories
     """
     with Session() as db:
-        menu_items = db.execute(select(MenuItem)).scalars().all()
+        menu_items = db.execute(select(Category)).scalars().all()
         return menu_items
 
 

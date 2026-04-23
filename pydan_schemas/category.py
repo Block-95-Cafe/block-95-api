@@ -1,25 +1,32 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from pydan_schemas.menu import MenuItemSchema
 
 
-class GetCategorySchema(BaseModel):
+class CategorySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
 
-    class Config:
-        from_attributes = True  # called orm_mode = True in Pydantic v1
+
+class GetCategorySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    items: list[MenuItemSchema]
 
 
 class PostCategorySchema(BaseModel):
-    name: str = Field(min_length=1)
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True  # called orm_mode = True in Pydantic v1
+    name: str = Field(min_length=1)
 
 
 class UpdateCategorySchema(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1)
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True  # called orm_mode = True in Pydantic v1
+    name: Optional[str] = Field(default=None, min_length=1)

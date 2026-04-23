@@ -21,6 +21,7 @@ from interfaces.menu_interface import (
     update_menu_item,
 )
 from pydan_schemas.category import (
+    CategorySchema,
     GetCategorySchema,
     PostCategorySchema,
     UpdateCategorySchema,
@@ -78,7 +79,7 @@ def root():
 
 @app.get(
     "/menu",
-    response_model=list[GetMenuItemSchema],
+    response_model=list[GetCategorySchema],
 )
 def get_menu():
     try:
@@ -110,7 +111,6 @@ def delete_item(item_id: int):
         deletion_status = delete_menu_item(item_id=item_id)
         if not deletion_status:
             raise HTTPException(status_code=404, detail="Item not found")
-        return message(text="Sucessfully deleted item", deleted_item_id=item_id)
     except SQLAlchemyError:
         raise HTTPException(status_code=500, detail="Failed to delete item")
 
@@ -121,7 +121,10 @@ def update_item(item: UpdateMenuItemSchema, item_id: int):
         updated_item = update_menu_item(item=item, item_target_id=item_id)
         if not updated_item:
             raise HTTPException(status_code=404, detail="Item to update not found")
-        return message(text="Sucessfully updated item", updated_item=updated_item)
+        return message(
+            text="Sucessfully updated item",
+            updated_item=GetMenuItemSchema.model_validate(updated_item),
+        )
     except SQLAlchemyError:
         raise HTTPException(status_code=500, detail="Failed to update item")
 
@@ -130,7 +133,7 @@ def update_item(item: UpdateMenuItemSchema, item_id: int):
 
 
 # Read all categories
-@app.get("/category", status_code=200, response_model=list[GetCategorySchema])
+@app.get("/category", status_code=200, response_model=list[CategorySchema])
 def get_categories():
     try:
         categories = get_all_categories()
@@ -151,7 +154,8 @@ def patch_category(category: UpdateCategorySchema, category_id: int):
                 status_code=404, detail="Cannot find category to update"
             )
         return message(
-            text="Sucessfully updated category", updated_category=updated_category
+            text="Sucessfully updated category",
+            updated_category=GetCategorySchema.model_validate(updated_category),
         )
 
     except SQLAlchemyError:
@@ -167,9 +171,6 @@ def delete_category(category_id: int):
             raise HTTPException(
                 status_code=404, detail="Category to delete does not exist"
             )
-        return message(
-            text="Sucessfully deleted_category", deleted_category_id=category_id
-        )
     except SQLAlchemyError:
         raise HTTPException(status_code=500, detail="Failed to delete item")
 
